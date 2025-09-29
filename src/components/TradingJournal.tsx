@@ -1,29 +1,17 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { useInView } from 'react-intersection-observer';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Calendar, 
-  Clock, 
-  Target,
-  BarChart3,
   Filter,
-  Download,
   Plus,
-  Edit2,
-  Eye,
-  Upload,
-  Database,
-  PieChart,
   X,
   Save,
-  AlertCircle
+  AlertCircle,
+  PieChart
 } from 'lucide-react';
 import ReactECharts from 'echarts-for-react';
+import TradeCard from './TradeCard';
 
-interface Trade {
+export interface Trade {
   id: number;
   symbol: string;
   session: string;
@@ -41,12 +29,6 @@ interface Trade {
 }
 
 const TradingJournal: React.FC = () => {
-  const [ref, inView] = useInView({
-    triggerOnce: true,
-    threshold: 0.1,
-  });
-
-  const [activeTab, setActiveTab] = useState<'database' | 'analytics'>('database');
   const [selectedTrade, setSelectedTrade] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -67,7 +49,7 @@ const TradingJournal: React.FC = () => {
       time: "08:30",
       strategy: "Breakout",
       notes: "Perfect breakout setup with strong volume confirmation",
-      image: "https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/8b5cf6?text=Chart+Analysis"
+      image: "https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/8b5cf6?text=Chart+Analysis"
     },
     {
       id: 2,
@@ -83,7 +65,23 @@ const TradingJournal: React.FC = () => {
       time: "10:15",
       strategy: "Reversal",
       notes: "Failed reversal - market continued trending down",
-      image: "https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/ef4444?text=Failed+Setup"
+      image: "https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/ef4444?text=Failed+Setup"
+    },
+    {
+      id: 3,
+      symbol: "BTC/USD",
+      session: "New York",
+      entryPrice: 68500,
+      exitPrice: 70100,
+      riskPercent: 2.0,
+      positionSize: 0.02,
+      result: "Win",
+      pnl: 320.00,
+      date: "2025-01-15",
+      time: "14:00",
+      strategy: "Trend Following",
+      notes: "Caught the daily uptrend continuation after a small pullback.",
+      image: "https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/22c55e?text=Trend+Continuation"
     }
   ];
 
@@ -98,7 +96,9 @@ const TradingJournal: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().slice(0, 5),
     strategy: 'Breakout',
-    notes: ''
+    notes: '',
+    result: 'Win',
+    pnl: 0,
   });
 
   const MAX_FREE_TRADES = 10;
@@ -121,24 +121,21 @@ const TradingJournal: React.FC = () => {
       return;
     }
 
-    if (!newTrade.symbol || !newTrade.entryPrice || !newTrade.exitPrice) {
-      alert('Please fill in all required fields');
+    if (!newTrade.symbol || !newTrade.result || newTrade.pnl === undefined) {
+      alert('Please fill in Symbol, Result, and P&L ($).');
       return;
     }
-
-    const pnl = ((newTrade.exitPrice! - newTrade.entryPrice!) * newTrade.positionSize! * 100000) * (newTrade.symbol?.includes('JPY') ? 0.01 : 1);
-    const result: 'Win' | 'Loss' = pnl > 0 ? 'Win' : 'Loss';
 
     const trade: Trade = {
       id: Math.max(...trades.map(t => t.id), 0) + 1,
       symbol: newTrade.symbol!,
       session: newTrade.session!,
-      entryPrice: newTrade.entryPrice!,
-      exitPrice: newTrade.exitPrice!,
+      entryPrice: newTrade.entryPrice ?? 0,
+      exitPrice: newTrade.exitPrice ?? 0,
       riskPercent: newTrade.riskPercent!,
       positionSize: newTrade.positionSize!,
-      result,
-      pnl: Math.round(pnl * 100) / 100,
+      result: newTrade.result!,
+      pnl: newTrade.pnl!,
       date: newTrade.date!,
       time: newTrade.time!,
       strategy: newTrade.strategy!,
@@ -146,7 +143,7 @@ const TradingJournal: React.FC = () => {
       image: imagePreview || undefined
     };
 
-    setTrades([...trades, trade]);
+    setTrades([trade, ...trades]);
     setNewTrade({
       symbol: '',
       session: 'London',
@@ -157,11 +154,22 @@ const TradingJournal: React.FC = () => {
       date: new Date().toISOString().split('T')[0],
       time: new Date().toTimeString().slice(0, 5),
       strategy: 'Breakout',
-      notes: ''
+      notes: '',
+      result: 'Win',
+      pnl: 0,
     });
     setImageFile(null);
     setImagePreview('');
     setShowAddForm(false);
+  };
+
+  const handleDeleteTrade = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this trade?')) {
+      setTrades(trades.filter(trade => trade.id !== id));
+      if (selectedTrade === id) {
+        setSelectedTrade(null);
+      }
+    }
   };
 
   const stats = {
@@ -175,653 +183,218 @@ const TradingJournal: React.FC = () => {
   // Chart Options
   const pnlChartOption = {
     backgroundColor: 'transparent',
-    title: {
-      text: 'P&L Over Time',
-      textStyle: { color: '#ffffff', fontSize: 16 }
-    },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(168, 85, 247, 0.1)',
-      borderColor: '#a855f7',
-      textStyle: { color: '#ffffff' }
-    },
-    xAxis: {
-      type: 'category',
-      data: trades.map(t => t.date),
-      axisLine: { lineStyle: { color: '#a855f7' } },
-      axisLabel: { color: '#9ca3af' }
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { lineStyle: { color: '#a855f7' } },
-      axisLabel: { color: '#9ca3af' },
-      splitLine: { lineStyle: { color: '#374151' } }
-    },
+    title: { text: 'P&L Over Time', textStyle: { color: '#EAE0D5', fontSize: 14 } },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(26, 26, 26, 0.8)', borderColor: '#A42A28', textStyle: { color: '#EAE0D5' } },
+    xAxis: { type: 'category', data: trades.map(t => t.date).reverse(), axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 }, splitLine: { lineStyle: { color: '#333' } } },
     series: [{
-      data: trades.map(t => t.pnl),
-      type: 'line',
-      smooth: true,
-      lineStyle: { color: '#a855f7', width: 3 },
-      itemStyle: { color: '#a855f7' },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(168, 85, 247, 0.3)' },
-            { offset: 1, color: 'rgba(168, 85, 247, 0.05)' }
-          ]
-        }
-      }
-    }]
+      data: trades.map(t => t.pnl).reverse(), type: 'line', smooth: true, lineStyle: { color: '#A42A28', width: 2 }, itemStyle: { color: '#A42A28' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(164, 42, 40, 0.3)' }, { offset: 1, color: 'rgba(164, 42, 40, 0.05)' }] } }
+    }],
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
   };
 
   const winLossChartOption = {
     backgroundColor: 'transparent',
-    title: {
-      text: 'Win/Loss Distribution',
-      textStyle: { color: '#ffffff', fontSize: 16 }
-    },
-    tooltip: {
-      trigger: 'item',
-      backgroundColor: 'rgba(168, 85, 247, 0.1)',
-      borderColor: '#a855f7',
-      textStyle: { color: '#ffffff' }
-    },
+    title: { text: 'Win/Loss', textStyle: { color: '#EAE0D5', fontSize: 14 }, left: 'center' },
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(26, 26, 26, 0.8)', borderColor: '#A42A28', textStyle: { color: '#EAE0D5' } },
     series: [{
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['50%', '60%'],
+      type: 'pie', radius: ['50%', '80%'], center: ['50%', '60%'], avoidLabelOverlap: false,
       data: [
-        { 
-          value: trades.filter(t => t.result === 'Win').length, 
-          name: 'Wins',
-          itemStyle: { color: '#22c55e' }
-        },
-        { 
-          value: trades.filter(t => t.result === 'Loss').length, 
-          name: 'Losses',
-          itemStyle: { color: '#ef4444' }
-        }
+        { value: trades.filter(t => t.result === 'Win').length, name: 'Wins', itemStyle: { color: '#16a34a' } },
+        { value: trades.filter(t => t.result === 'Loss').length, name: 'Losses', itemStyle: { color: '#dc2626' } }
       ],
-      label: {
-        color: '#ffffff',
-        fontSize: 14
-      }
+      label: { show: false, position: 'center' },
+      emphasis: { label: { show: true, fontSize: '16', fontWeight: 'bold', color: '#EAE0D5' } },
+      labelLine: { show: false }
     }]
   };
 
   const strategyChartOption = {
     backgroundColor: 'transparent',
-    title: {
-      text: 'Strategy Performance',
-      textStyle: { color: '#ffffff', fontSize: 16 }
-    },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(168, 85, 247, 0.1)',
-      borderColor: '#a855f7',
-      textStyle: { color: '#ffffff' }
-    },
-    xAxis: {
-      type: 'category',
-      data: [...new Set(trades.map(t => t.strategy))],
-      axisLine: { lineStyle: { color: '#a855f7' } },
-      axisLabel: { color: '#9ca3af' }
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { lineStyle: { color: '#a855f7' } },
-      axisLabel: { color: '#9ca3af' },
-      splitLine: { lineStyle: { color: '#374151' } }
-    },
+    title: { text: 'Strategy Performance (P&L)', textStyle: { color: '#EAE0D5', fontSize: 14 } },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(26, 26, 26, 0.8)', borderColor: '#A42A28', textStyle: { color: '#EAE0D5' } },
+    xAxis: { type: 'category', data: [...new Set(trades.map(t => t.strategy))], axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 }, splitLine: { lineStyle: { color: '#333' } } },
     series: [{
-      data: [...new Set(trades.map(t => t.strategy))].map(strategy => 
-        trades.filter(t => t.strategy === strategy).reduce((sum, t) => sum + t.pnl, 0)
-      ),
+      data: [...new Set(trades.map(t => t.strategy))].map(strategy => trades.filter(t => t.strategy === strategy).reduce((sum, t) => sum + t.pnl, 0)),
       type: 'bar',
-      itemStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: '#a855f7' },
-            { offset: 1, color: '#c084fc' }
-          ]
-        }
-      }
-    }]
+      itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#A42A28' }, { offset: 1, color: '#C75D5B' }] } }
+    }],
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
   };
 
   return (
-    <section className="py-24 relative overflow-hidden bg-gradient-to-b from-black to-gray-900">
-      {/* Background Effects */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute top-0 left-1/3 w-96 h-96 bg-neon-purple/5 rounded-full blur-3xl animate-pulse-slow"></div>
-        <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-green-500/5 rounded-full blur-3xl animate-pulse-slow"></div>
+    <section className="py-6 relative overflow-hidden">
+      <div className="absolute inset-0 z-0 opacity-10">
+        <div className="absolute top-0 left-1/3 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-slow"></div>
+        <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-success/10 rounded-full blur-3xl animate-pulse-slow"></div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10" ref={ref}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-3xl md:text-5xl font-bold mb-6">
-            Interactive Trading Journal
-            <span className="block gradient-text">Add Your Own Trades!</span>
+      <div className="max-w-7xl mx-auto relative z-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="text-center mb-8">
+          <h2 className="text-3xl md:text-4xl font-bold mb-3 text-accent">
+            Free Trial Journal
           </h2>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
+          <p className="text-lg text-text-secondary max-w-3xl mx-auto">
             Try our professional trading journal with your own data. Add up to {MAX_FREE_TRADES} trades for free!
           </p>
-          <div className="flex flex-wrap justify-center gap-4 text-sm">
-            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full">✓ Fully Interactive</span>
-            <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full">✓ Add Your Trades</span>
-            <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full">✓ Real Analytics</span>
-            <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full">✓ Chart Upload</span>
-          </div>
         </motion.div>
 
-        {/* Stats Dashboard */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12"
-        >
-          <div className="glass-effect p-6 rounded-xl text-center hover:shadow-neon transition-all duration-300">
-            <BarChart3 className="w-6 h-6 text-neon-purple mx-auto mb-2" />
-            <div className="text-2xl font-bold text-white">{stats.totalTrades}/10</div>
-            <div className="text-sm text-gray-400">Total Trades</div>
-          </div>
-          
-          <div className="glass-effect p-6 rounded-xl text-center hover:shadow-neon transition-all duration-300">
-            <Target className="w-6 h-6 text-green-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-green-400">{stats.winRate}%</div>
-            <div className="text-sm text-gray-400">Win Rate</div>
-          </div>
-          
-          <div className="glass-effect p-6 rounded-xl text-center hover:shadow-neon transition-all duration-300">
-            <DollarSign className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-white">${stats.totalPnL.toFixed(0)}</div>
-            <div className="text-sm text-gray-400">Total P&L</div>
-          </div>
-          
-          <div className="glass-effect p-6 rounded-xl text-center hover:shadow-neon transition-all duration-300">
-            <TrendingUp className="w-6 h-6 text-green-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-green-400">${stats.avgWin.toFixed(0)}</div>
-            <div className="text-sm text-gray-400">Avg Win</div>
-          </div>
-          
-          <div className="glass-effect p-6 rounded-xl text-center hover:shadow-neon transition-all duration-300">
-            <TrendingDown className="w-6 h-6 text-red-400 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-red-400">${stats.avgLoss.toFixed(0)}</div>
-            <div className="text-sm text-gray-400">Avg Loss</div>
-          </div>
-        </motion.div>
-
-        {/* Tab Navigation */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex justify-center mb-8"
-        >
-          <div className="glass-effect rounded-lg p-2 flex">
-            <button
-              onClick={() => setActiveTab('database')}
-              className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-                activeTab === 'database'
-                  ? 'bg-neon-purple text-black'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              <Database className="w-5 h-5 mr-2" />
-              Trade Database
-            </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-300 ${
-                activeTab === 'analytics'
-                  ? 'bg-neon-purple text-black'
-                  : 'text-gray-300 hover:text-white'
-              }`}
-            >
-              <PieChart className="w-5 h-5 mr-2" />
-              Analytics
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Database Tab */}
-        {activeTab === 'database' && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="glass-effect rounded-xl p-6 mb-8"
-          >
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-white mb-4 md:mb-0">Your Trade Entries</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <h3 className="text-2xl font-bold text-accent mb-4 md:mb-0">Recent Trades</h3>
               <div className="flex gap-3">
-                <button className="flex items-center px-4 py-2 bg-neon-purple/20 text-neon-purple rounded-lg hover:bg-neon-purple/30 transition-all duration-300">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filter
-                </button>
-                <button className="flex items-center px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-all duration-300">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
+                <button className="flex items-center px-4 py-2 bg-surface text-primary rounded-lg hover:bg-primary/10 transition-all duration-300 border border-primary/30">
+                  <Filter className="w-4 h-4 mr-2" /> Filter
                 </button>
                 <button
                   onClick={() => setShowAddForm(true)}
                   disabled={trades.length >= MAX_FREE_TRADES}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all duration-300 ${
+                  className={`flex items-center px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
                     trades.length >= MAX_FREE_TRADES
-                      ? 'bg-gray-500/20 text-gray-500 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-neon-purple to-neon-purple-light text-black hover:shadow-neon'
+                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                      : 'bg-primary text-background hover:bg-primary-light'
                   }`}
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Trade {trades.length >= MAX_FREE_TRADES && `(${trades.length}/${MAX_FREE_TRADES})`}
+                  Add Trade {trades.length < MAX_FREE_TRADES && `(${trades.length}/${MAX_FREE_TRADES})`}
                 </button>
               </div>
             </div>
 
             {trades.length >= MAX_FREE_TRADES && (
-              <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center">
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center">
                 <AlertCircle className="w-5 h-5 text-yellow-400 mr-3" />
-                <span className="text-yellow-400">
-                  Free trial limit reached ({MAX_FREE_TRADES} trades). Upgrade for unlimited access!
-                </span>
+                <span className="text-yellow-400">Free trial limit reached. Upgrade for unlimited access!</span>
               </div>
             )}
 
-            {/* Trades Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-neon-purple/20">
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Symbol</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Session</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Entry</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Exit</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Risk %</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Result</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">P&L</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Date</th>
-                    <th className="text-left py-3 px-4 text-gray-300 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map((trade, index) => (
-                    <motion.tr
-                      key={trade.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
-                      className="border-b border-gray-800 hover:bg-neon-purple/5 transition-all duration-300 cursor-pointer"
-                      onClick={() => setSelectedTrade(selectedTrade === trade.id ? null : trade.id)}
-                    >
-                      <td className="py-4 px-4">
-                        <div className="font-semibold text-white">{trade.symbol}</div>
-                        <div className="text-sm text-gray-400">{trade.strategy}</div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="px-2 py-1 bg-blue-500/20 text-blue-400 rounded text-sm">
-                          {trade.session}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-gray-300">{trade.entryPrice}</td>
-                      <td className="py-4 px-4 text-gray-300">{trade.exitPrice}</td>
-                      <td className="py-4 px-4 text-gray-300">{trade.riskPercent}%</td>
-                      <td className="py-4 px-4">
-                        <span className={`px-2 py-1 rounded text-sm font-semibold ${
-                          trade.result === 'Win' 
-                            ? 'bg-green-500/20 text-green-400' 
-                            : 'bg-red-500/20 text-red-400'
-                        }`}>
-                          {trade.result}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`font-semibold ${
-                          trade.pnl > 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          ${trade.pnl > 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="text-gray-300">{trade.date}</div>
-                        <div className="text-sm text-gray-400">{trade.time}</div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex gap-2">
-                          <button className="p-1 text-gray-400 hover:text-neon-purple transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button className="p-1 text-gray-400 hover:text-green-400 transition-colors">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+            <div className="space-y-3">
+              <AnimatePresence>
+                {trades.map((trade) => (
+                  <TradeCard
+                    key={trade.id}
+                    trade={trade}
+                    onSelect={() => setSelectedTrade(selectedTrade === trade.id ? null : trade.id)}
+                    onDelete={handleDeleteTrade}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-surface border border-primary/20 p-4 rounded-xl">
+              <h3 className="text-lg font-bold text-accent mb-3">Performance Stats</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Win Rate</span><span className="font-bold text-success">{stats.winRate}%</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Total P&L</span><span className={`font-bold ${stats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>${stats.totalPnL.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Average Win</span><span className="font-bold text-success">${stats.avgWin.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Average Loss</span><span className="font-bold text-danger">${stats.avgLoss.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Total Trades</span><span className="font-bold text-accent">{stats.totalTrades} / {MAX_FREE_TRADES}</span></div>
+              </div>
+            </div>
+            <div className="bg-surface border border-primary/20 p-4 rounded-xl"><ReactECharts option={winLossChartOption} style={{ height: '200px' }} /></div>
+            <div className="bg-surface border border-primary/20 p-4 rounded-xl"><ReactECharts option={pnlChartOption} style={{ height: '200px' }} /></div>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {selectedTrade && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-6">
+              <div className="bg-surface border border-primary/20 rounded-xl p-6">
+                {(() => {
+                  const trade = trades.find(t => t.id === selectedTrade);
+                  if (!trade) return null;
+                  return (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-xl font-bold text-accent mb-4">Trade Details - {trade.symbol}</h4>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-sm text-text-secondary">Entry Price</label><div className="text-accent font-semibold">{trade.entryPrice}</div></div>
+                            <div><label className="text-sm text-text-secondary">Exit Price</label><div className="text-accent font-semibold">{trade.exitPrice}</div></div>
+                          </div>
+                          <div><label className="text-sm text-text-secondary">Trading Notes</label><div className="text-text-primary mt-1 p-3 bg-background rounded-lg">{trade.notes}</div></div>
                         </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Analytics Tab */}
-        {activeTab === 'analytics' && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="space-y-8"
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="glass-effect p-6 rounded-xl">
-                <ReactECharts option={pnlChartOption} style={{ height: '300px' }} />
-              </div>
-              <div className="glass-effect p-6 rounded-xl">
-                <ReactECharts option={winLossChartOption} style={{ height: '300px' }} />
-              </div>
-            </div>
-            <div className="glass-effect p-6 rounded-xl">
-              <ReactECharts option={strategyChartOption} style={{ height: '300px' }} />
-            </div>
-          </motion.div>
-        )}
-
-        {/* Add Trade Form Modal */}
-        {showAddForm && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-effect p-8 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold text-white">Add New Trade</h3>
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Symbol</label>
-                  <input
-                    type="text"
-                    value={newTrade.symbol}
-                    onChange={(e) => setNewTrade({...newTrade, symbol: e.target.value})}
-                    placeholder="EUR/USD"
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Session</label>
-                  <select
-                    value={newTrade.session}
-                    onChange={(e) => setNewTrade({...newTrade, session: e.target.value})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  >
-                    <option value="London">London</option>
-                    <option value="New York">New York</option>
-                    <option value="Tokyo">Tokyo</option>
-                    <option value="Sydney">Sydney</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Entry Price</label>
-                  <input
-                    type="number"
-                    step="0.00001"
-                    value={newTrade.entryPrice}
-                    onChange={(e) => setNewTrade({...newTrade, entryPrice: parseFloat(e.target.value)})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Exit Price</label>
-                  <input
-                    type="number"
-                    step="0.00001"
-                    value={newTrade.exitPrice}
-                    onChange={(e) => setNewTrade({...newTrade, exitPrice: parseFloat(e.target.value)})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Risk %</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={newTrade.riskPercent}
-                    onChange={(e) => setNewTrade({...newTrade, riskPercent: parseFloat(e.target.value)})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Position Size (lots)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newTrade.positionSize}
-                    onChange={(e) => setNewTrade({...newTrade, positionSize: parseFloat(e.target.value)})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Date</label>
-                  <input
-                    type="date"
-                    value={newTrade.date}
-                    onChange={(e) => setNewTrade({...newTrade, date: e.target.value})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Time</label>
-                  <input
-                    type="time"
-                    value={newTrade.time}
-                    onChange={(e) => setNewTrade({...newTrade, time: e.target.value})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Strategy</label>
-                  <select
-                    value={newTrade.strategy}
-                    onChange={(e) => setNewTrade({...newTrade, strategy: e.target.value})}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  >
-                    <option value="Breakout">Breakout</option>
-                    <option value="Reversal">Reversal</option>
-                    <option value="Trend Following">Trend Following</option>
-                    <option value="Support/Resistance">Support/Resistance</option>
-                    <option value="News Trading">News Trading</option>
-                    <option value="Scalping">Scalping</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Chart Image</label>
-                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center hover:border-neon-purple transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="chart-upload"
-                    />
-                    <label htmlFor="chart-upload" className="cursor-pointer">
-                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-400">Click to upload chart image</p>
-                    </label>
-                    {imagePreview && (
-                      <div className="mt-4">
-                        <img src={imagePreview} alt="Chart preview" className="max-h-32 mx-auto rounded-lg" />
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Notes</label>
-                  <textarea
-                    value={newTrade.notes}
-                    onChange={(e) => setNewTrade({...newTrade, notes: e.target.value})}
-                    placeholder="Trade analysis and notes..."
-                    rows={3}
-                    className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:border-neon-purple focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-4 mt-8">
-                <button
-                  onClick={handleAddTrade}
-                  className="flex-1 bg-gradient-to-r from-neon-purple to-neon-purple-light text-black py-3 rounded-lg font-semibold hover:shadow-neon transition-all duration-300 flex items-center justify-center"
-                >
-                  <Save className="w-5 h-5 mr-2" />
-                  Save Trade
-                </button>
-                <button
-                  onClick={() => setShowAddForm(false)}
-                  className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800/50 transition-all duration-300"
-                >
-                  Cancel
-                </button>
+                      <div>
+                        <h4 className="text-xl font-bold text-accent mb-4">Chart Analysis</h4>
+                        <div className="bg-background rounded-lg p-4">
+                          {trade.image ? <img src={trade.image} alt="Chart Analysis" className="w-full h-48 object-cover rounded-lg" /> : <div className="w-full h-48 bg-surface rounded-lg flex items-center justify-center"><span className="text-text-secondary">No chart uploaded</span></div>}
+                          <div className="mt-4 flex justify-between items-center">
+                            <span className="text-text-secondary">Strategy: {trade.strategy}</span>
+                            <span className={`font-semibold ${trade.pnl > 0 ? 'text-success' : 'text-danger'}`}>{trade.result}: ${trade.pnl > 0 ? '+' : ''}{trade.pnl.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </motion.div>
-          </div>
-        )}
+          )}
+        </AnimatePresence>
 
-        {/* Trade Detail Panel */}
-        {selectedTrade && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="glass-effect rounded-xl p-6 mb-8"
-          >
-            {(() => {
-              const trade = trades.find(t => t.id === selectedTrade);
-              if (!trade) return null;
-              
-              return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div>
-                    <h4 className="text-xl font-bold text-white mb-4">Trade Details - {trade.symbol}</h4>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-gray-400">Entry Price</label>
-                          <div className="text-white font-semibold">{trade.entryPrice}</div>
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-400">Exit Price</label>
-                          <div className="text-white font-semibold">{trade.exitPrice}</div>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-gray-400">Position Size</label>
-                          <div className="text-white font-semibold">{trade.positionSize} lots</div>
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-400">Risk Percentage</label>
-                          <div className="text-white font-semibold">{trade.riskPercent}%</div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm text-gray-400">Trading Notes</label>
-                        <div className="text-gray-300 mt-1 p-3 bg-gray-800/50 rounded-lg">
-                          {trade.notes}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+        <div className="mt-6 bg-surface border border-primary/20 p-4 rounded-xl"><ReactECharts option={strategyChartOption} style={{ height: '250px' }} /></div>
+
+        <AnimatePresence>
+          {showAddForm && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-surface border border-primary/30 p-8 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-accent">Add New Trade</h3><button onClick={() => setShowAddForm(false)} className="text-text-secondary hover:text-accent transition-colors"><X className="w-6 h-6" /></button></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Symbol</label><input type="text" value={newTrade.symbol} onChange={(e) => setNewTrade({...newTrade, symbol: e.target.value})} placeholder="EUR/USD" className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
                   
                   <div>
-                    <h4 className="text-xl font-bold text-white mb-4">Chart Analysis</h4>
-                    <div className="bg-gray-800/50 rounded-lg p-4">
-                      {trade.image ? (
-                        <img 
-                          src={trade.image} 
-                          alt="Chart Analysis" 
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                      ) : (
-                        <div className="w-full h-48 bg-gray-700 rounded-lg flex items-center justify-center">
-                          <span className="text-gray-400">No chart uploaded</span>
-                        </div>
-                      )}
-                      <div className="mt-4 flex justify-between items-center">
-                        <span className="text-gray-400">Strategy: {trade.strategy}</span>
-                        <span className={`font-semibold ${
-                          trade.pnl > 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {trade.result}: ${trade.pnl > 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Strategy</label>
+                    <select value={newTrade.strategy} onChange={(e) => setNewTrade({...newTrade, strategy: e.target.value})} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none">
+                      <option>Breakout</option>
+                      <option>Reversal</option>
+                      <option>Trend Following</option>
+                      <option>Scalping</option>
+                      <option>Swing Trading</option>
+                      <option>Other</option>
+                    </select>
                   </div>
-                </div>
-              );
-            })()}
-          </motion.div>
-        )}
 
-        {/* CTA Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="text-center"
-        >
-          <div className="glass-effect p-12 rounded-3xl max-w-4xl mx-auto">
-            <h3 className="text-2xl md:text-3xl font-bold mb-6 gradient-text">
-              Ready for Unlimited Trading Analysis?
-            </h3>
-            <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
-              You've experienced our powerful trading journal. Upgrade to track unlimited trades with advanced analytics, AI insights, and professional reporting.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.button
-                className="bg-gradient-to-r from-neon-purple to-neon-purple-light text-black px-8 py-4 rounded-lg font-semibold text-lg hover:shadow-neon-strong transition-all duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Upgrade to Pro - $79 Lifetime
-              </motion.button>
-              <motion.button
-                className="border border-green-500 bg-green-500/10 text-green-400 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-green-500/20 transition-all duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Continue Free Demo
-              </motion.button>
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Session</label><select value={newTrade.session} onChange={(e) => setNewTrade({...newTrade, session: e.target.value})} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none"><option value="London">London</option><option value="New York">New York</option><option value="Tokyo">Tokyo</option><option value="Sydney">Sydney</option></select></div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Date</label>
+                    <input type="date" value={newTrade.date} onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Time</label>
+                    <input type="time" value={newTrade.time} onChange={(e) => setNewTrade({ ...newTrade, time: e.target.value })} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Result</label>
+                    <select value={newTrade.result} onChange={(e) => setNewTrade({...newTrade, result: e.target.value as 'Win' | 'Loss'})} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none">
+                      <option value="Win">Win</option>
+                      <option value="Loss">Loss</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">P&L ($)</label>
+                    <input type="number" step="any" value={newTrade.pnl ?? ''} onChange={(e) => { const val = parseFloat(e.target.value); setNewTrade({...newTrade, pnl: isNaN(val) ? undefined : val }); }} placeholder="e.g., 150.50 or -50" className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" />
+                  </div>
+
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Entry Price</label><input type="number" step="any" value={newTrade.entryPrice ?? ''} onChange={(e) => { const val = parseFloat(e.target.value); setNewTrade({...newTrade, entryPrice: isNaN(val) ? undefined : val }); }} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Exit Price</label><input type="number" step="any" value={newTrade.exitPrice ?? ''} onChange={(e) => { const val = parseFloat(e.target.value); setNewTrade({...newTrade, exitPrice: isNaN(val) ? undefined : val }); }} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                  
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-text-secondary mb-2">Chart Image</label><div className="border-2 border-dashed border-surface rounded-lg p-6 text-center hover:border-primary transition-colors"><input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="chart-upload" /><label htmlFor="chart-upload" className="cursor-pointer"><PieChart className="w-8 h-8 text-text-secondary mx-auto mb-2" /><p className="text-text-secondary">Click to upload chart image</p></label>{imagePreview && (<div className="mt-4"><img src={imagePreview} alt="Chart preview" className="max-h-32 mx-auto rounded-lg" /></div>)}</div></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-text-secondary mb-2">Notes</label><textarea value={newTrade.notes} onChange={(e) => setNewTrade({...newTrade, notes: e.target.value})} placeholder="Trade analysis and notes..." rows={3} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                </div>
+                <div className="flex gap-4 mt-8"><button onClick={handleAddTrade} className="flex-1 bg-primary text-background py-3 rounded-lg font-semibold hover:bg-primary-light transition-all duration-300 flex items-center justify-center"><Save className="w-5 h-5 mr-2" />Save Trade</button><button onClick={() => setShowAddForm(false)} className="px-6 py-3 border border-surface text-text-secondary rounded-lg hover:bg-surface/50 transition-all duration-300">Cancel</button></div>
+              </motion.div>
             </div>
-          </div>
-        </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </section>
   );

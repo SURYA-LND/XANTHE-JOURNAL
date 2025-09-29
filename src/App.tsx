@@ -1,22 +1,43 @@
 import React from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import Features from './components/Features';
-import TradingJournal from './components/TradingJournal';
-import Pricing from './components/Pricing';
 import Footer from './components/Footer';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import DashboardLayout from './layouts/DashboardLayout';
+import DashboardPage from './pages/DashboardPage';
+import JournalTradesPage from './pages/JournalTradesPage';
 
-function App() {
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isDashboardRoute = location.pathname.startsWith('/journal');
+
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
-      <Navbar />
-      <Hero />
-      <Features />
-      <TradingJournal />
-      <Pricing />
-      <Footer />
+      {!isDashboardRoute && <Navbar />}
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route 
+          path="/journal" 
+          element={
+            <ProtectedRoute>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<DashboardPage />} />
+          <Route path="trades" element={<JournalTradesPage />} />
+        </Route>
+      </Routes>
+      {!isDashboardRoute && <Footer />}
     </div>
   );
+}
+
+function App() {
+  return <AppContent />;
 }
 
 export default App;
