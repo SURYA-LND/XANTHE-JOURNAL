@@ -1,0 +1,403 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Filter,
+  Plus,
+  X,
+  Save,
+  AlertCircle,
+  PieChart
+} from 'lucide-react';
+import ReactECharts from 'echarts-for-react';
+import TradeCard from './TradeCard';
+
+export interface Trade {
+  id: number;
+  symbol: string;
+  session: string;
+  entryPrice: number;
+  exitPrice: number;
+  riskPercent: number;
+  positionSize: number;
+  result: 'Win' | 'Loss';
+  pnl: number;
+  date: string;
+  time: string;
+  strategy: string;
+  notes: string;
+  image?: string;
+}
+
+const TradingJournal: React.FC = () => {
+  const [selectedTrade, setSelectedTrade] = useState<number | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+
+  const initialTrades: Trade[] = [
+    {
+      id: 1,
+      symbol: "EUR/USD",
+      session: "London",
+      entryPrice: 1.0845,
+      exitPrice: 1.0889,
+      riskPercent: 2.5,
+      positionSize: 0.5,
+      result: "Win",
+      pnl: 220.00,
+      date: "2025-01-14",
+      time: "08:30",
+      strategy: "Breakout",
+      notes: "Perfect breakout setup with strong volume confirmation",
+      image: "https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/8b5cf6?text=Chart+Analysis"
+    },
+    {
+      id: 2,
+      symbol: "GBP/JPY",
+      session: "London",
+      entryPrice: 194.25,
+      exitPrice: 193.80,
+      riskPercent: 1.8,
+      positionSize: 0.3,
+      result: "Loss",
+      pnl: -135.00,
+      date: "2025-01-14",
+      time: "10:15",
+      strategy: "Reversal",
+      notes: "Failed reversal - market continued trending down",
+      image: "https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/ef4444?text=Failed+Setup"
+    },
+    {
+      id: 3,
+      symbol: "BTC/USD",
+      session: "New York",
+      entryPrice: 68500,
+      exitPrice: 70100,
+      riskPercent: 2.0,
+      positionSize: 0.02,
+      result: "Win",
+      pnl: 320.00,
+      date: "2025-01-15",
+      time: "14:00",
+      strategy: "Trend Following",
+      notes: "Caught the daily uptrend continuation after a small pullback.",
+      image: "https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://img-wrapper.vercel.app/image?url=https://placehold.co/400x200/1a1a1a/22c55e?text=Trend+Continuation"
+    }
+  ];
+
+  const [trades, setTrades] = useState<Trade[]>(initialTrades);
+  const [newTrade, setNewTrade] = useState<Partial<Trade>>({
+    symbol: '',
+    session: 'London',
+    entryPrice: 0,
+    exitPrice: 0,
+    riskPercent: 1,
+    positionSize: 0.1,
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().slice(0, 5),
+    strategy: 'Breakout',
+    notes: '',
+    result: 'Win',
+    pnl: 0,
+  });
+
+  const MAX_FREE_TRADES = 10;
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAddTrade = () => {
+    if (trades.length >= MAX_FREE_TRADES) {
+      alert(`Free version limited to ${MAX_FREE_TRADES} trades. Upgrade for unlimited access!`);
+      return;
+    }
+
+    if (!newTrade.symbol || !newTrade.result || newTrade.pnl === undefined) {
+      alert('Please fill in Symbol, Result, and P&L ($).');
+      return;
+    }
+
+    const trade: Trade = {
+      id: Math.max(...trades.map(t => t.id), 0) + 1,
+      symbol: newTrade.symbol!,
+      session: newTrade.session!,
+      entryPrice: newTrade.entryPrice ?? 0,
+      exitPrice: newTrade.exitPrice ?? 0,
+      riskPercent: newTrade.riskPercent!,
+      positionSize: newTrade.positionSize!,
+      result: newTrade.result!,
+      pnl: newTrade.pnl!,
+      date: newTrade.date!,
+      time: newTrade.time!,
+      strategy: newTrade.strategy!,
+      notes: newTrade.notes!,
+      image: imagePreview || undefined
+    };
+
+    setTrades([trade, ...trades]);
+    setNewTrade({
+      symbol: '',
+      session: 'London',
+      entryPrice: 0,
+      exitPrice: 0,
+      riskPercent: 1,
+      positionSize: 0.1,
+      date: new Date().toISOString().split('T')[0],
+      time: new Date().toTimeString().slice(0, 5),
+      strategy: 'Breakout',
+      notes: '',
+      result: 'Win',
+      pnl: 0,
+    });
+    setImageFile(null);
+    setImagePreview('');
+    setShowAddForm(false);
+  };
+
+  const handleDeleteTrade = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this trade?')) {
+      setTrades(trades.filter(trade => trade.id !== id));
+      if (selectedTrade === id) {
+        setSelectedTrade(null);
+      }
+    }
+  };
+
+  const stats = {
+    totalTrades: trades.length,
+    winRate: trades.length > 0 ? Math.round((trades.filter(t => t.result === "Win").length / trades.length) * 100) : 0,
+    totalPnL: trades.reduce((sum, trade) => sum + trade.pnl, 0),
+    avgWin: trades.filter(t => t.result === "Win").reduce((sum, trade, _, arr) => arr.length > 0 ? sum + (trade.pnl / arr.length) : 0, 0),
+    avgLoss: Math.abs(trades.filter(t => t.result === "Loss").reduce((sum, trade, _, arr) => arr.length > 0 ? sum + (trade.pnl / arr.length) : 0, 0)),
+  };
+
+  // Chart Options
+  const pnlChartOption = {
+    backgroundColor: 'transparent',
+    title: { text: 'P&L Over Time', textStyle: { color: '#EAE0D5', fontSize: 14 } },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(26, 26, 26, 0.8)', borderColor: '#A42A28', textStyle: { color: '#EAE0D5' } },
+    xAxis: { type: 'category', data: trades.map(t => t.date).reverse(), axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 }, splitLine: { lineStyle: { color: '#333' } } },
+    series: [{
+      data: trades.map(t => t.pnl).reverse(), type: 'line', smooth: true, lineStyle: { color: '#A42A28', width: 2 }, itemStyle: { color: '#A42A28' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(164, 42, 40, 0.3)' }, { offset: 1, color: 'rgba(164, 42, 40, 0.05)' }] } }
+    }],
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
+  };
+
+  const winLossChartOption = {
+    backgroundColor: 'transparent',
+    title: { text: 'Win/Loss', textStyle: { color: '#EAE0D5', fontSize: 14 }, left: 'center' },
+    tooltip: { trigger: 'item', backgroundColor: 'rgba(26, 26, 26, 0.8)', borderColor: '#A42A28', textStyle: { color: '#EAE0D5' } },
+    series: [{
+      type: 'pie', radius: ['50%', '80%'], center: ['50%', '60%'], avoidLabelOverlap: false,
+      data: [
+        { value: trades.filter(t => t.result === 'Win').length, name: 'Wins', itemStyle: { color: '#16a34a' } },
+        { value: trades.filter(t => t.result === 'Loss').length, name: 'Losses', itemStyle: { color: '#dc2626' } }
+      ],
+      label: { show: false, position: 'center' },
+      emphasis: { label: { show: true, fontSize: '16', fontWeight: 'bold', color: '#EAE0D5' } },
+      labelLine: { show: false }
+    }]
+  };
+
+  const strategyChartOption = {
+    backgroundColor: 'transparent',
+    title: { text: 'Strategy Performance (P&L)', textStyle: { color: '#EAE0D5', fontSize: 14 } },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(26, 26, 26, 0.8)', borderColor: '#A42A28', textStyle: { color: '#EAE0D5' } },
+    xAxis: { type: 'category', data: [...new Set(trades.map(t => t.strategy))], axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 } },
+    yAxis: { type: 'value', axisLine: { lineStyle: { color: '#A42A28' } }, axisLabel: { color: '#a1a1aa', fontSize: 10 }, splitLine: { lineStyle: { color: '#333' } } },
+    series: [{
+      data: [...new Set(trades.map(t => t.strategy))].map(strategy => trades.filter(t => t.strategy === strategy).reduce((sum, t) => sum + t.pnl, 0)),
+      type: 'bar',
+      itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#A42A28' }, { offset: 1, color: '#C75D5B' }] } }
+    }],
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true }
+  };
+
+  return (
+    <section className="py-6 relative overflow-hidden">
+      <div className="absolute inset-0 z-0 opacity-10">
+        <div className="absolute top-0 left-1/3 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-slow"></div>
+        <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-success/10 rounded-full blur-3xl animate-pulse-slow"></div>
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="text-center mb-8">
+          <h2 className="text-3xl md:text-4xl font-bold mb-3 text-accent">
+            Free Trial Journal
+          </h2>
+          <p className="text-lg text-text-secondary max-w-3xl mx-auto">
+            Try our professional trading journal with your own data. Add up to {MAX_FREE_TRADES} trades for free!
+          </p>
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <h3 className="text-2xl font-bold text-accent mb-4 md:mb-0">Recent Trades</h3>
+              <div className="flex gap-3">
+                <button className="flex items-center px-4 py-2 bg-surface text-primary rounded-lg hover:bg-primary/10 transition-all duration-300 border border-primary/30">
+                  <Filter className="w-4 h-4 mr-2" /> Filter
+                </button>
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  disabled={trades.length >= MAX_FREE_TRADES}
+                  className={`flex items-center px-4 py-2 rounded-lg font-semibold transition-all duration-300 ${
+                    trades.length >= MAX_FREE_TRADES
+                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                      : 'bg-primary text-background hover:bg-primary-light'
+                  }`}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Trade {trades.length < MAX_FREE_TRADES && `(${trades.length}/${MAX_FREE_TRADES})`}
+                </button>
+              </div>
+            </div>
+
+            {trades.length >= MAX_FREE_TRADES && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center">
+                <AlertCircle className="w-5 h-5 text-yellow-400 mr-3" />
+                <span className="text-yellow-400">Free trial limit reached. Upgrade for unlimited access!</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <AnimatePresence>
+                {trades.map((trade) => (
+                  <TradeCard
+                    key={trade.id}
+                    trade={trade}
+                    onSelect={() => setSelectedTrade(selectedTrade === trade.id ? null : trade.id)}
+                    onDelete={handleDeleteTrade}
+                  />
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-surface border border-primary/20 p-4 rounded-xl">
+              <h3 className="text-lg font-bold text-accent mb-3">Performance Stats</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Win Rate</span><span className="font-bold text-success">{stats.winRate}%</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Total P&L</span><span className={`font-bold ${stats.totalPnL >= 0 ? 'text-success' : 'text-danger'}`}>${stats.totalPnL.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Average Win</span><span className="font-bold text-success">${stats.avgWin.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Average Loss</span><span className="font-bold text-danger">${stats.avgLoss.toFixed(2)}</span></div>
+                <div className="flex justify-between items-center"><span className="text-text-secondary">Total Trades</span><span className="font-bold text-accent">{stats.totalTrades} / {MAX_FREE_TRADES}</span></div>
+              </div>
+            </div>
+            <div className="bg-surface border border-primary/20 p-4 rounded-xl"><ReactECharts option={winLossChartOption} style={{ height: '200px' }} /></div>
+            <div className="bg-surface border border-primary/20 p-4 rounded-xl"><ReactECharts option={pnlChartOption} style={{ height: '200px' }} /></div>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {selectedTrade && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-6">
+              <div className="bg-surface border border-primary/20 rounded-xl p-6">
+                {(() => {
+                  const trade = trades.find(t => t.id === selectedTrade);
+                  if (!trade) return null;
+                  return (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-xl font-bold text-accent mb-4">Trade Details - {trade.symbol}</h4>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-sm text-text-secondary">Entry Price</label><div className="text-accent font-semibold">{trade.entryPrice}</div></div>
+                            <div><label className="text-sm text-text-secondary">Exit Price</label><div className="text-accent font-semibold">{trade.exitPrice}</div></div>
+                          </div>
+                          <div><label className="text-sm text-text-secondary">Trading Notes</label><div className="text-text-primary mt-1 p-3 bg-background rounded-lg">{trade.notes}</div></div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="text-xl font-bold text-accent mb-4">Chart Analysis</h4>
+                        <div className="bg-background rounded-lg p-4">
+                          {trade.image ? <img src={trade.image} alt="Chart Analysis" className="w-full h-48 object-cover rounded-lg" /> : <div className="w-full h-48 bg-surface rounded-lg flex items-center justify-center"><span className="text-text-secondary">No chart uploaded</span></div>}
+                          <div className="mt-4 flex justify-between items-center">
+                            <span className="text-text-secondary">Strategy: {trade.strategy}</span>
+                            <span className={`font-semibold ${trade.pnl > 0 ? 'text-success' : 'text-danger'}`}>{trade.result}: ${trade.pnl > 0 ? '+' : ''}{trade.pnl.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="mt-6 bg-surface border border-primary/20 p-4 rounded-xl"><ReactECharts option={strategyChartOption} style={{ height: '250px' }} /></div>
+
+        <AnimatePresence>
+          {showAddForm && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-surface border border-primary/30 p-8 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-bold text-accent">Add New Trade</h3><button onClick={() => setShowAddForm(false)} className="text-text-secondary hover:text-accent transition-colors"><X className="w-6 h-6" /></button></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Symbol</label><input type="text" value={newTrade.symbol} onChange={(e) => setNewTrade({...newTrade, symbol: e.target.value})} placeholder="EUR/USD" className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Strategy</label>
+                    <select value={newTrade.strategy} onChange={(e) => setNewTrade({...newTrade, strategy: e.target.value})} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none">
+                      <option>Breakout</option>
+                      <option>Reversal</option>
+                      <option>Trend Following</option>
+                      <option>Scalping</option>
+                      <option>Swing Trading</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Session</label><select value={newTrade.session} onChange={(e) => setNewTrade({...newTrade, session: e.target.value})} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none"><option value="London">London</option><option value="New York">New York</option><option value="Tokyo">Tokyo</option><option value="Sydney">Sydney</option></select></div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Date</label>
+                    <input type="date" value={newTrade.date} onChange={(e) => setNewTrade({ ...newTrade, date: e.target.value })} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Time</label>
+                    <input type="time" value={newTrade.time} onChange={(e) => setNewTrade({ ...newTrade, time: e.target.value })} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">Result</label>
+                    <select value={newTrade.result} onChange={(e) => setNewTrade({...newTrade, result: e.target.value as 'Win' | 'Loss'})} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none">
+                      <option value="Win">Win</option>
+                      <option value="Loss">Loss</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-2">P&L ($)</label>
+                    <input type="number" step="any" value={newTrade.pnl ?? ''} onChange={(e) => { const val = parseFloat(e.target.value); setNewTrade({...newTrade, pnl: isNaN(val) ? undefined : val }); }} placeholder="e.g., 150.50 or -50" className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" />
+                  </div>
+
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Entry Price</label><input type="number" step="any" value={newTrade.entryPrice ?? ''} onChange={(e) => { const val = parseFloat(e.target.value); setNewTrade({...newTrade, entryPrice: isNaN(val) ? undefined : val }); }} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                  <div><label className="block text-sm font-medium text-text-secondary mb-2">Exit Price</label><input type="number" step="any" value={newTrade.exitPrice ?? ''} onChange={(e) => { const val = parseFloat(e.target.value); setNewTrade({...newTrade, exitPrice: isNaN(val) ? undefined : val }); }} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                  
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-text-secondary mb-2">Chart Image</label><div className="border-2 border-dashed border-surface rounded-lg p-6 text-center hover:border-primary transition-colors"><input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="chart-upload" /><label htmlFor="chart-upload" className="cursor-pointer"><PieChart className="w-8 h-8 text-text-secondary mx-auto mb-2" /><p className="text-text-secondary">Click to upload chart image</p></label>{imagePreview && (<div className="mt-4"><img src={imagePreview} alt="Chart preview" className="max-h-32 mx-auto rounded-lg" /></div>)}</div></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-text-secondary mb-2">Notes</label><textarea value={newTrade.notes} onChange={(e) => setNewTrade({...newTrade, notes: e.target.value})} placeholder="Trade analysis and notes..." rows={3} className="w-full px-4 py-3 bg-background border border-surface rounded-lg text-accent focus:border-primary focus:outline-none" /></div>
+                </div>
+                <div className="flex gap-4 mt-8"><button onClick={handleAddTrade} className="flex-1 bg-primary text-background py-3 rounded-lg font-semibold hover:bg-primary-light transition-all duration-300 flex items-center justify-center"><Save className="w-5 h-5 mr-2" />Save Trade</button><button onClick={() => setShowAddForm(false)} className="px-6 py-3 border border-surface text-text-secondary rounded-lg hover:bg-surface/50 transition-all duration-300">Cancel</button></div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+    </section>
+  );
+};
+
+export default TradingJournal;
